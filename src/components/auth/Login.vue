@@ -120,6 +120,11 @@ export default {
       .then(() => {
         this.isLoading = false;
         console.log("Login erfolgreich");
+        // Weiterleitung zur Shop Page falls login erfolgreich
+        this.$router.push("/shop");
+        this.$router.push({
+          path: "/shop"
+        });
       })
       .catch((error) => {
         this.error = error.message;
