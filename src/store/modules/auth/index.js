@@ -1,6 +1,8 @@
 import axios from "axios";
 import { FIREBASE_API_KEY } from "@/config/firebase";
 
+let timer;
+
 const state = {
   userId: null,
   token: null,
@@ -31,6 +33,18 @@ const actions = {
     return axios
       .post(url, authDO)
       .then((response) => {
+        // Daten im Local Storage speichern
+        const expiresIn = Number(response.data.expiresIn) * 1000;
+        const expDate = new Date().getTime() + expiresIn;
+
+        localStorage.setItem("token", response.data.idToken);
+        localStorage.setItem("userId", response.data.localId);
+        localStorage.setItem("expiresIn", expDate);
+
+        timer = setTimeout(() => {
+          context.dispatch("autoSignout");
+        }, expiresIn);
+
         context.commit("setUser", {
           userId: response.data.localId,
           token: response.data.idToken,
@@ -57,8 +71,48 @@ const actions = {
     };
     return context.dispatch("auth", signinDO);
   },
+  autoSignin(context) {
+    const token = localStorage.getItem("token");
+    const userId = localStorage.getItem("userId");
+    const expiresIn = localStorage.getItem("expiresIn");
+
+    const timeLeft = Number(expiresIn) - new Date().getTime();
+
+    if (timeLeft < 0) {
+      return;
+    }
+
+    timer = setTimeout(() => {
+      context.dispatch("autoSignout");
+    }, expiresIn);
+
+    if (token && userId) {
+      context.commit("setUser", {
+        token: token,
+        userId: userId,
+      });
+    }
+  },
+  signout(context) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("expiresIn");
+
+    clearTimeout(timer);
+
+    context.commit("setUser", {
+      token: null,
+      userId: null,
+    });
+  },
+  autoSignout(context) {
+    // weitere Server-Kommunikation falls notwendig
+    context.dispatch("signout");
+  },
 };
-const getters = {};
+const getters = {
+  isAuthenticated: (state) => !!state.token,
+};
 
 const authModule = {
   state,
